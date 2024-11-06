@@ -3,7 +3,7 @@ qdrant-client==1.12.0
 python-multipart==0.0.16
 scikit-learn==1.5.2
 langchain-core==0.3.13
-gradio==4.44.1
+gradio==5.0.0
 loguru==0.7.2
 groq==0.11.0
 python-dotenv==1.0.1
