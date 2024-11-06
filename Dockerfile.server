@@ -1,0 +1,24 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copy the requirements file and install dependencies in cached mode
+COPY requirements.txt .
+
+# Update pip and install dependencies
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+
+COPY server.py .
+COPY src/ ./src/
+COPY .env .
+COPY capec-dataset/ ./capec-dataset/
+
+
+
+# Expose the port on which the FastAPI app will run
+EXPOSE 8000
+
+# Command to run the FastAPI app using uvicorn
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

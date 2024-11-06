@@ -1,0 +1,4 @@
+gradio==4.44.1
+loguru==0.7.2
+websockets
+python-dotenv==1.0.1

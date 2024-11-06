@@ -1,0 +1,43 @@
+networks:
+  capec-network:
+    driver: bridge
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    ports:
+      - "8000:8000"
+    networks:
+      - capec-network
+    hostname: rag-server
+    volumes:
+      - ./src/index/index/:/app/src/index/index/
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    networks:
+      - capec-network
+    ports:
+      - "7860:7860"
+    environment:
+      - SERVER_HOST=rag-server
+      - SERVER_PORT=8000
+
+  qdrant:
+    image: qdrant/qdrant:v0.10.1
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - capec-network
+    hostname: qdrant
+
+volumes:
+  qdrant_storage:
+    driver: local
