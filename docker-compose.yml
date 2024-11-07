@@ -14,6 +14,8 @@ services:
     hostname: rag-server
     volumes:
       - ./src/index/index/:/app/src/index/index/
+    environment:
+      - TOKENIZERS_PARALLELISM=false
 
   client:
     build:

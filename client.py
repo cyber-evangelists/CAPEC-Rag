@@ -1,53 +1,98 @@
-import asyncio
-import json
-import os
-from typing import Tuple, List, Optional, Dict, Any
-
+# client.py
 import gradio as gr
 import websockets
+import json
+import asyncio
+import logging
+from typing import Tuple, List, Optional, Dict, Any
 from loguru import logger
 
 from src.config.config import Config
 
 
-class ChatbotUI:
-    """A class to handle the chatbot user interface and WebSocket communication."""
 
-    def __init__(self):
-        """Initialize the ChatbotUI with configuration settings."""
-        self.max_history = Config.MAX_CHAT_HISTORY  # Maximum number of messages to keep
-        self.websocket = None
-
-    def clear_chat(self) -> Optional[List[Tuple[str, str]]]:
-        """
-        Clear the chat history.
-
-        Returns:
-            Optional[List[Tuple[str, str]]]: None to clear the chat history.
-        """
-        return None
+class WebSocketClient:
+    def __init__(self, uri: str = "ws://rag-server:8000/ws"):
+        self.uri = uri
+        self.websocket: Optional[websockets.WebSocketClientProtocol] = None
+        self._connection_lock = asyncio.Lock()
+        
+    async def connect(self):
+        if not self.websocket:
+            self.websocket = await websockets.connect(self.uri)
+            logger.info("Connected to WebSocket server")
+        return self.websocket
+        
+    async def disconnect(self):
+        if self.websocket:
+            await self.websocket.close()
+            self.websocket = None
+            logger.info("Disconnected from WebSocket server")
+            
+    async def send_search_query(self, query: str, payload:str) -> str:
+        try:
+            # Ensure connection is established
+            if not self.websocket:
+                await self.connect()
+                
+            # Send search query
+            await self.websocket.send(json.dumps({"query": query}))
+            
+            # Wait for response
+            response = await self.websocket.recv()
+            data = json.loads(response)
+            
+            if data["status"] == "success":
+                # Format results for display
+                results = data["results"]
+                formatted_results = "\n\n".join([
+                    f"Title: {result['title']}\nURL: {result['url']}"
+                    for result in results
+                ])
+                return formatted_results, payload
+            else:
+                return f"Error: {data['message'], payload}"
+                
+        except websockets.exceptions.ConnectionClosedError:
+            logger.error("Connection closed unexpectedly. Attempting to reconnect...")
+            self.websocket = None
+            return "Connection lost. Please try again."
+        except Exception as e:
+            logger.error(f"Error during search: {str(e)}")
+            return f"Error: {str(e)}"
+        
+    async def ensure_connection(self): 
+        if self.websocket is None or self.websocket.closed:
+            await self.connect()
 
 
     async def connect(self):
-        try:
-            uri = Config.WEBSOCKET_URI
-            if not uri.startswith(('ws://', 'wss://')):
-                logger.error("Invalid WebSocket URI format")
-                return
-            self.websocket = await websockets.connect(
-                uri,
-                ping_interval=20,
-                ping_timeout=60,
-                max_size=10_485_760
-            )
+        """Establish WebSocket connection and start heartbeat monitoring"""
+        async with self._connection_lock:
+            try:
+                uri = Config.WEBSOCKET_URI
+                if not uri.startswith(('ws://', 'wss://')):
+                    logger.error("Invalid WebSocket URI format")
+                    return
+
+                self.websocket = await websockets.connect(
+                    uri,
+                    ping_interval=20,
+                    ping_timeout=60,
+                    max_size=10_485_760
+                )
+                logger.info("Connected to server.....")
+
+                # self._heartbeat_task = asyncio.create_task(self._heartbeat())
+
+                return True
+
+            except Exception as e:
+                logger.error(f"Connection error: {e}")
+                return False
             
-        except Exception as e:
-            logger.error(f"Connection error: {e}")
-
-
-
     async def handle_request(
-        self, action: str, payload: dict
+        self, action: str, payload: dict = {}
     ) -> Tuple[str, List[Tuple[str, str]]]:
         """
         Handle WebSocket requests to the server.
@@ -61,44 +106,28 @@ class ChatbotUI:
             and updated chat history.
         """
 
-        query = payload["query"]
-        if not query.strip():
-            logger.error(f"No input provided")
-            return "", [(payload.get("query", ""), "No query Entered")]
+        logger.info("Into handle search function..")
 
-
-        uri = Config.WEBSOCKET_URI
-
-        if not uri.startswith(('ws://', 'wss://')):
-            logger.error(f"Invalid WebSocket URI format: {uri}")
-            return "", [(payload.get("query", ""), "Invalid WebSocket URI configuration")]
-
-        if self.websocket is None or self.websocket.closed:
-            await self.connect()
-
+        if action ==  "search":
+            query = payload["query"]
+            if not query.strip():
+                logger.error(f"No input provided")
+                return "", [(payload.get("query", ""), "No query Entered")]
+            
         try:
+            
+            logger.info("Ensuring Connection....")
+            await ws_client.ensure_connection()
+
+            result = await self._handle_websocket_communication(action, payload)
+            return  result
         
-            # Set up connection timeout
-            response_future = asyncio.create_task(
-                self._handle_websocket_communication(action, payload)
-            )
-
-            try:
-                result = await asyncio.wait_for(
-                    response_future,
-                    timeout=300  # 5-minute timeout
-                )
-                return result
-            except asyncio.TimeoutError:
-                logger.error("Request timed out")
-                return "", [(payload.get("query", ""), "Request timed out")]
-
         except Exception as e:
             logger.error(f"Connection error: {e}")
+            await self.disconnect() 
             return "", [(payload.get("query", ""), f"Connection error: {str(e)}")]
-        finally:
-            self.websocket = None
-
+        
+        
     async def _handle_websocket_communication(
         self, action: str, payload: dict
     ) -> Tuple[str, List[Tuple[str, str]]]:
@@ -120,9 +149,14 @@ class ChatbotUI:
                 response = await self.websocket.recv()
                 response_data = json.loads(response)
 
+                logger.info("Response received...")
+
                 # Handle heartbeat
                 if response_data.get("type") == "ping":
-                    await self.websocket.send(json.dumps({"action": "pong"}))
+                    await self.websocket.send(json.dumps({
+                        "action": "pong",
+                        "timestamp": response_data.get("timestamp")
+                    }))
                     continue
 
                 result = response_data.get("result", "No response from server")
@@ -142,22 +176,53 @@ class ChatbotUI:
         except Exception as e:
             logger.error(f"Communication error: {e}")
             return "", [(payload.get("query", ""), f"Communication error: {str(e)}")]
+        
 
-    def create_interface(self) -> gr.Blocks:
+
+# Create WebSocket client instance
+ws_client = WebSocketClient(Config.WEBSOCKET_URI)
+
+
+async def search_click(msg, history):
+    return await ws_client.handle_request(
+        "search",
+        {"query": msg, "history": history if history else []}
+    )
+
+
+async def handle_ingest() -> gr.Info:
+    """
+    Handle the data ingestion process.
+
+    Args:
+        ws_client (WebSocketClient): The WebSocket client instance.
+
+    Returns:
+        gr.Info: A Gradio info or warning message.
+    """
+    message, _ = await ws_client.handle_request("ingest_data", {})
+    return gr.Info(message) if "success" in message.lower() else gr.Warning(message)
+
+
+def clear_chat() -> Optional[List[Tuple[str, str]]]:
         """
-        Create the Gradio interface for the chatbot.
+        Clear the chat history.
 
         Returns:
-            gr.Blocks: The configured Gradio interface.
+            Optional[List[Tuple[str, str]]]: None to clear the chat history.
         """
-        with gr.Blocks(
-            title="ASM Chatbot",
+        return None
+
+
+# Create Gradio interface
+with gr.Blocks(
+            title="CAPEC Chatbot",
             theme=gr.themes.Soft(),
             css=".gradio-container {max-width: 800px; margin: auto}"
         ) as demo:
             gr.Markdown("""
             # ASM Chatbot
-            Ask questions about ASM and get detailed responses.
+            Ask questions about CAPEC Dataset and get detailed responses.
             """)
 
             with gr.Row():
@@ -171,9 +236,9 @@ class ChatbotUI:
 
             with gr.Row():
                 search_btn = gr.Button("Search", variant="primary", scale=2)
-                # ingest_data_btn = gr.Button("Ingest Data", variant="primary", scale=1)
                 clear_btn = gr.Button("Clear", variant="secondary", scale=1)
                 status_box = gr.Textbox(visible=False)
+
 
             chatbot = gr.Chatbot(
                 height=400,
@@ -182,46 +247,26 @@ class ChatbotUI:
                 elem_id="chatbot"
             )
 
-
-            submit_click = search_btn.click(
-                fn=lambda msg, history: asyncio.run(
-                    self.handle_request(
-                        "search",
-                        {"query": msg, "history": history if history else []}
-                    )
-                ),
+            search_btn.click(
+                fn=search_click,
                 inputs=[msg, chatbot],
                 outputs=[msg, chatbot]
             )
 
-
-
             clear_btn.click(
-                fn=self.clear_chat,
+                fn=clear_chat,
                 inputs=[],
                 outputs=[chatbot]
             )
 
+            
 
-        return demo
-
-
-def launch_gradio_interface() -> None:
-    """Launch the Gradio interface with configured settings."""
-    chatbot_ui = ChatbotUI()
-    demo = chatbot_ui.create_interface()
-
+if __name__ == "__main__":
     server_name = Config.GRADIO_SERVER_NAME
     server_port = int(Config.GRADIO_SERVER_PORT)
-
-    demo.launch(
-        server_name=server_name,
+    logger.info("Launching Gradio..")
+    demo.queue().launch(server_name=server_name,
         server_port=server_port,
         share=False,
         debug=True,
-        show_error=True,
-    )
-
-
-if __name__ == "__main__":
-    launch_gradio_interface()
+        show_error=True,)

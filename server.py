@@ -128,5 +128,5 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
     finally:
-        pass
+        connection_manager.disconnect(websocket)
         
