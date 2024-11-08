@@ -10,7 +10,6 @@ from loguru import logger
 from src.config.config import Config
 
 
-
 class WebSocketClient:
     def __init__(self, uri: str = "ws://rag-server:8000/ws"):
         self.uri = uri
@@ -221,7 +220,7 @@ with gr.Blocks(
             css=".gradio-container {max-width: 800px; margin: auto}"
         ) as demo:
             gr.Markdown("""
-            # ASM Chatbot
+            # CAPEC Chatbot
             Ask questions about CAPEC Dataset and get detailed responses.
             """)
 
@@ -241,7 +240,7 @@ with gr.Blocks(
 
 
             chatbot = gr.Chatbot(
-                height=400,
+                height=600,
                 show_label=False,
                 container=True,
                 elem_id="chatbot"

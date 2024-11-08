@@ -9,11 +9,9 @@ from llama_index.core.node_parser import SentenceSplitter
 from datetime import datetime
 from dataclasses import dataclass
 
-
 from loguru import logger
 
 from src.config.config import Config
-
 
 @dataclass
 class DocumentMetadata:
@@ -49,13 +47,34 @@ class CsvParser:
         )
 
 
+
+    def read_file(self, file_path: Path) -> pd.DataFrame:
+        df = pd.read_csv(file_path, 
+                sep=',',
+                encoding='utf-8',
+                skipinitialspace=True, index_col=None)
+        
+        df.columns = df.columns.map(lambda x: x.strip("'\"")) 
+        df_reset = df.reset_index(drop=False)
+
+        col_names = df.columns
+
+        df.columns = col_names
+
+        df = df_reset.iloc[:, :-1]
+
+        df.columns = col_names
+        
+        return df
+
+
     def process_file(self, file_path: Path) -> List[Document]:
         """Process a single CSV file with enhanced metadata and version control"""
         try:
             logger.info(f"Processing file: {file_path}")
             
             # Read CSV file
-            df = pd.read_csv(file_path)
+            df = self.read_file(file_path)
                         
             documents = []
             for _, row in df.iterrows():
@@ -98,11 +117,11 @@ class CsvParser:
         text_parts = []
         
         # Process each column in the row
-        for col in row.index:
-            cleaned_text = str(row[col]).strip() if pd.notna(row[col]) else ""
+        for col, value in row.items():  # Change here to access both col and value
+            cleaned_text = str(value).strip() if pd.notna(value) else ""
             if cleaned_text:  # Only include non-empty values
                 text_parts.append(f"{col}: {cleaned_text}")
-        
+
         # Join all parts with a separator
         return " | ".join(text_parts)
 
