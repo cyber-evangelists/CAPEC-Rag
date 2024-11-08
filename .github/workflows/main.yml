@@ -27,7 +27,7 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deployment_key
           chmod 600 ~/.ssh/deployment_key
           eval "$(ssh-agent -s)"
-          # Use expect to send the passphrase
+          # Use expect to send the passphrase for the key
           expect -c "
           spawn ssh-add ~/.ssh/deployment_key
           expect \"Enter passphrase for ~/.ssh/deployment_key:\"
@@ -41,7 +41,7 @@ jobs:
 
       - name: Synchronize Code with VM Using rsync
         env:
-          RSYNC_RSH: "ssh -i ~/.ssh/deployment_key -o IdentitiesOnly=yes"  # Explicitly specify the SSH key
+          RSYNC_RSH: "ssh -i ~/.ssh/deployment_key -o IdentitiesOnly=yes"  # Explicitly specify the SSH key and disable other key attempts
         run: |
           rsync -avz --checksum --exclude='.git' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/dev/
 
