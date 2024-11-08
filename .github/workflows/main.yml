@@ -13,14 +13,25 @@ jobs:
       - name: Checkout Repository  
         uses: actions/checkout@v3  
 
-      - name: Set up SSH  
-        uses: webfactory/ssh-agent@v0.7.0  
-        with:  
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}  
+      - name: Set up SSH with passphrase  
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          VM_PASSPHRASE: ${{ secrets.VM_PASSPHRASE }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deployment_key
+          chmod 600 ~/.ssh/deployment_key
+          eval "$(ssh-agent -s)"
+          # Use expect to send the passphrase
+          expect -c "
+          spawn ssh-add ~/.ssh/deployment_key
+          expect \"Enter passphrase for ~/.ssh/deployment_key:\"
+          send \"$VM_PASSPHRASE\r\"
+          interact
+          "
 
       - name: Add Azure VM to known_hosts  
         run: |  
-          mkdir -p ~/.ssh  
           ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts  
 
       - name: Synchronize Code with VM Using rsync
