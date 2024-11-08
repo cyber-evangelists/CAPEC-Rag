@@ -35,13 +35,13 @@ jobs:
           interact
           "
 
-      - name: Add Azure VM to known_hosts  
+      - name: Add VM to known_hosts  
         run: |  
           ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts  
 
       - name: Synchronize Code with VM Using rsync
         env:
-          RSYNC_RSH: "ssh"
+          RSYNC_RSH: "ssh -i ~/.ssh/deployment_key"  # Explicitly specify the SSH key
         run: |
           rsync -avz --checksum --exclude='.git' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/dev/
 
