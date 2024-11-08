@@ -27,6 +27,10 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deployment_key
           chmod 600 ~/.ssh/deployment_key
           eval "$(ssh-agent -s)"
+          # Clear the agent to ensure no other keys are used
+          ssh-add -D
+          # Add only the correct key to the agent
+          ssh-add ~/.ssh/deployment_key
           # Use expect to send the passphrase for the key
           expect -c "
           spawn ssh-add ~/.ssh/deployment_key
