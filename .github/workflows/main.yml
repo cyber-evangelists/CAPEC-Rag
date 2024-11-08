@@ -13,10 +13,10 @@ jobs:
       - name: Checkout Repository  
         uses: actions/checkout@v3  
 
-      - name: Install expect  
+      - name: Install SSH Agent and Tools  
         run: |
           sudo apt-get update
-          sudo apt-get install -y expect
+          sudo apt-get install -y openssh-client
 
       - name: Set up SSH with passphrase  
         env:
@@ -27,17 +27,8 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deployment_key
           chmod 600 ~/.ssh/deployment_key
           eval "$(ssh-agent -s)"
-          # Clear the agent to ensure no other keys are used
-          ssh-add -D
-          # Add only the correct key to the agent
-          ssh-add ~/.ssh/deployment_key
-          # Use expect to send the passphrase for the key
-          expect -c "
-          spawn ssh-add ~/.ssh/deployment_key
-          expect \"Enter passphrase for ~/.ssh/deployment_key:\"
-          send \"$VM_PASSPHRASE\r\"
-          interact
-          "
+          # Add the private key to the agent and provide the passphrase non-interactively
+          echo "$VM_PASSPHRASE" | ssh-add ~/.ssh/deployment_key
 
       - name: Add VM to known_hosts  
         run: |  
@@ -45,7 +36,7 @@ jobs:
 
       - name: Synchronize Code with VM Using rsync
         env:
-          RSYNC_RSH: "ssh -i ~/.ssh/deployment_key -o IdentitiesOnly=yes"  # Explicitly specify the SSH key and disable other key attempts
+          RSYNC_RSH: "ssh -i ~/.ssh/deployment_key -o IdentitiesOnly=yes"  # Explicitly specify the SSH key for rsync
         run: |
           rsync -avz --checksum --exclude='.git' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/dev/
 
