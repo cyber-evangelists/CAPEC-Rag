@@ -13,6 +13,11 @@ jobs:
       - name: Checkout Repository  
         uses: actions/checkout@v3  
 
+      - name: Install expect  
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y expect
+
       - name: Set up SSH with passphrase  
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
