@@ -1,0 +1,45 @@
+name: Deployment CAPEC-Rag
+
+on:  
+  push:  
+    branches: 
+      - main  
+
+jobs:  
+  deploy-to-vm:  
+    runs-on: ubuntu-latest  
+
+    steps:  
+      - name: Checkout Repository  
+        uses: actions/checkout@v3  
+
+      - name: Set up SSH  
+        uses: webfactory/ssh-agent@v0.7.0  
+        with:  
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}  
+
+      - name: Add Azure VM to known_hosts  
+        run: |  
+          mkdir -p ~/.ssh  
+          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts  
+
+      - name: Synchronize Code with VM Using rsync
+        env:
+          RSYNC_RSH: "ssh"
+        run: |
+          rsync -avz --checksum --exclude='.git' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/dev/
+
+      - name: Restart Docker Compose Services  
+        uses: appleboy/ssh-action@v0.1.6  
+        with:  
+          host: ${{ secrets.VM_HOST }}  
+          username: ${{ secrets.VM_USER }}  
+          key: ${{ secrets.SSH_PRIVATE_KEY }}  
+          script: |  
+            echo "Stopping existing Docker Compose services..."  
+            cd /home/dev/
+            sudo docker-compose down  
+            echo "Starting Docker Compose services..."  
+            sudo docker-compose build --no-cache
+            sudo docker-compose up -d  
+            echo "Successfully deployed the application!"
