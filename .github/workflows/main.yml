@@ -13,11 +13,8 @@ jobs:
       - name: Checkout Repository  
         uses: actions/checkout@v3  
 
-      - name: Set up SSH with Password Authentication  
-        run: |
-          echo "$PASSWORD" | sudo -S echo "Password authentication is set up"  # Use PASSWORD secret for sudo
-        env:
-          PASSWORD: ${{ secrets.PASSWORD }}
+      - name: Install sshpass  
+        run: sudo apt-get install -y sshpass
 
       - name: Add Azure VM to known_hosts  
         run: |  
@@ -28,18 +25,18 @@ jobs:
         run: |
           cat ~/.ssh/known_hosts  # Optional step to confirm the host is added
 
-      - name: Synchronize Code with Azure VM Using rsync  
+      - name: Synchronize Code with Azure VM Using rsync and sshpass  
         env:
-          RSYNC_RSH: "ssh"  
+          PASSWORD: ${{ secrets.PASSWORD }}
         run: |
-          rsync -avz --exclude='.git' --exclude='.env' -e "ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no" ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/devops/CAPEC-Rag/
+          sshpass -p "$PASSWORD" rsync -avz --exclude='.git' --exclude='.env' -e "ssh -o StrictHostKeyChecking=no" ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/devops/CAPEC-Rag/
 
       - name: Restart Docker Compose Services  
         uses: appleboy/ssh-action@v0.1.6  
         with:  
           host: ${{ secrets.VM_HOST }}  
           username: ${{ secrets.VM_USER }}
-          password: ${{ secrets.PASSWORD }}  # Using the PASSWORD secret for SSH login
+          password: ${{ secrets.PASSWORD }}
           script: |  
             echo "Stopping existing Docker Compose services..."  
             cd /home/devops/CAPEC-Rag/ 
