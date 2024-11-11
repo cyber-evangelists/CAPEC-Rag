@@ -16,7 +16,7 @@ jobs:
       - name: Install sshpass  
         run: sudo apt-get install -y sshpass
 
-      - name: Add Azure VM to known_hosts  
+      - name: Add VM to known_hosts  
         run: |  
           mkdir -p ~/.ssh  
           ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts  
@@ -25,7 +25,7 @@ jobs:
         run: |
           cat ~/.ssh/known_hosts  # Optional step to confirm the host is added
 
-      - name: Synchronize Code with Azure VM Using rsync and sshpass  
+      - name: Synchronize Code with VM Using rsync and sshpass  
         env:
           PASSWORD: ${{ secrets.PASSWORD }}
         run: |
@@ -47,5 +47,5 @@ jobs:
             echo "$PASSWORD" | sudo -S docker-compose build --no-cache
             echo "$PASSWORD" | sudo -S docker-compose up -d  
             echo "Successfully deployed the application!"
-          env:
-            PASSWORD: ${{ secrets.PASSWORD }}
+        env:
+          PASSWORD: ${{ secrets.PASSWORD }}
