@@ -23,7 +23,7 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           VM_PASSPHRASE: ${{ secrets.VM_PASSPHRASE }}
         run: |
-          # Check if SSH agent is running and start it if not
+          # Start SSH Agent if it's not already running
           if [ -z "$SSH_AGENT_PID" ]; then
             eval "$(ssh-agent -s)"
           fi
@@ -33,11 +33,13 @@ jobs:
           chmod 600 ~/.ssh/deployment_key
           echo "$VM_PASSPHRASE" | ssh-add ~/.ssh/deployment_key
 
-      - name: Create SSH Config File
+      - name: Ensure SSH Config File Exists
         run: |
-          # Create an SSH config file to avoid the "No such file or directory" error
+          # Ensure the SSH config file exists
           mkdir -p ~/.ssh
-          echo -e "Host *\n  IdentitiesOnly yes\n  StrictHostKeyChecking accept-new\n  LogLevel VERBOSE" > ~/.ssh/config
+          if [ ! -f ~/.ssh/config ]; then
+            echo -e "Host *\n  IdentitiesOnly yes\n  StrictHostKeyChecking accept-new\n  LogLevel VERBOSE" > ~/.ssh/config
+          fi
           chmod 600 ~/.ssh/config
 
       - name: Add VM to known_hosts  
