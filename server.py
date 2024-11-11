@@ -1,5 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from loguru import logger
+from src.utils.utils import find_file_names
+from llama_index.core.vector_stores.types import MetadataFilters, ExactMatchFilter
 
 
 import asyncio
@@ -22,6 +24,8 @@ from src.utils.utils import prepare_prompt, rerank_docs
 from src.utils.connections_manager import ConnectionManager
 from src.config.config import Config
 
+from llama_index.core import  StorageContext
+
 import os
 
 app = FastAPI()
@@ -35,6 +39,14 @@ qdrantManager = QdrantManager(Config.QDRANT_HOST, Config.QDRANT_PORT, collection
 
 embedding_client = EmbeddingWrapper()
 
+# data_dir = Config.CAPEC_DATA_DIR
+
+# storage_context = StorageContext.from_defaults()
+
+# csvParser = CsvParser(data_dir)
+# documents = csvParser.process_directory()
+# index = qdrantManager.create_and_persist_index(documents, storage_context, embedding_client, Config.PERSIST_DIR)
+
 index = qdrantManager.load_index(persist_dir=Config.PERSIST_DIR, embed_model=embedding_client)
 
 retriever = VectorIndexRetriever(
@@ -42,6 +54,8 @@ retriever = VectorIndexRetriever(
             similarity_top_k=5
         )
 
+# Manually added file names of the CAPEC daatset. In production, These files will be fetched from database
+database_files = ["333.csv", "658.csv", "659.csv", "1000.csv", "3000.csv"]
 
 # Create the connection manager instance
 connection_manager = ConnectionManager(max_connections=Config.MAX_CONNECTIONS)
@@ -65,13 +79,23 @@ async def handle_search(websocket: WebSocket, query: str) -> None:
     try:
         logger.info(f"Processing search query: {query}")
 
-        # Generate embeddings
-        logger.info("Retrieving Relevant nodes")
-        relevant_nodes = retriever.retrieve(query)
+        filename = find_file_names(query, database_files)
+
+        if filename:
+            logger.info("Searching for file names...")
+
+            filters = MetadataFilters(filters=[ExactMatchFilter(key="source_file", value=filename)])
+            relevant_nodes =  index.as_retriever(filters=filters).retrieve(query)
+            if not relevant_nodes:
+                logger.info("Searching without file name filter....")
+                relevant_nodes = retriever.retrieve(query)
+        else:
+            logger.info("Searching without file names....")
+            relevant_nodes = retriever.retrieve(query)
 
         context = [node.text for node in relevant_nodes]
 
-        # Only attaching top 2 results
+        logger.info(context[:2])
         prompt = prepare_prompt(query, context[:2])
 
         # Generate response using Groq
@@ -130,3 +154,5 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     finally:
         connection_manager.disconnect(websocket)
         
+
+

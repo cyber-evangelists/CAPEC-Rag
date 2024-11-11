@@ -1,4 +1,3 @@
-# client.py
 import gradio as gr
 import websockets
 import json
@@ -117,7 +116,7 @@ class WebSocketClient:
         try:
             
             logger.info("Ensuring Connection....")
-            await ws_client.ensure_connection()
+            await self.ensure_connection()
 
             result = await self._handle_websocket_communication(action, payload)
             return  result
@@ -176,10 +175,9 @@ class WebSocketClient:
         except Exception as e:
             logger.error(f"Communication error: {e}")
             return "", [(payload.get("query", ""), f"Communication error: {str(e)}")]
-        
 
 
-# Create WebSocket client instance
+
 ws_client = WebSocketClient(Config.WEBSOCKET_URI)
 
 
@@ -216,50 +214,84 @@ def clear_chat() -> Optional[List[Tuple[str, str]]]:
 
 # Create Gradio interface
 with gr.Blocks(
-            title="CAPEC Chatbot",
-            theme=gr.themes.Soft(),
-            css=".gradio-container {max-width: 800px; margin: auto}"
-        ) as demo:
-            gr.Markdown("""
-            # ASM Chatbot
-            Ask questions about CAPEC Dataset and get detailed responses.
-            """)
+        title="Capec Chatbot",
+        theme=gr.themes.Soft(),
+        css="""
+            .gradio-container {
+                max-width: 700px; 
+                margin: auto; 
+                font-family: Arial, sans-serif;
+            }
+            #header {
+                text-align: center; 
+                font-size: 1.5rem; 
+                font-weight: bold; 
+                color: #008080; 
+                padding: 0.125rem;
+            }
+            #input-container {
+                display: flex; 
+                align-items: center;
+                background-color: #f7f7f8;
+                padding: 0.25rem; 
+                border-radius: 8px;
+                margin-top: 0.25rem;
+            }
+            #chatbot {
+                border: 1px solid #E5E7EB;
+                border-radius: 8px;
+                background-color: #FFFFFF;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+            .gr-button-primary {
+                background-color: #008080;
+                border-color: #008080;
+            }
+            .gr-button-primary:hover {
+                background-color: #006666;
+            }
+        """
+    ) as demo:
 
-            with gr.Row():
-                msg = gr.Textbox(
-                    label="Type your message here...",
-                    placeholder="Enter your query",
-                    show_label=True,
-                    container=True,
-                    scale=8
-                )
+    # Header
+    gr.Markdown(
+        "<div id='header'>CAPEC RAG Application</div>"
+    )
 
-            with gr.Row():
-                search_btn = gr.Button("Search", variant="primary", scale=2)
-                clear_btn = gr.Button("Clear", variant="secondary", scale=1)
-                status_box = gr.Textbox(visible=False)
+    # Chatbot Component
+    chatbot = gr.Chatbot(
+        height=450,
+        show_label=False,
+        container=True,
+        elem_id="chatbot"
+    )
+
+    # Chat Input Row
+    with gr.Row(elem_id="input-container"):
+        msg = gr.Textbox(
+            placeholder="Type a message...",
+            show_label=False,
+            container=False,
+            lines=1,
+            scale=10,
+        )
+        send_button = gr.Button("Send", variant="primary", scale=1)
+        clear_button = gr.Button("Clear Chat", variant="secondary")
+
+    # Button Functionality
+    send_button.click(
+        fn=search_click,
+        inputs=[msg, chatbot],
+        outputs=[msg, chatbot]
+    )
+    clear_button.click(
+        fn=clear_chat,
+        inputs=[],
+        outputs=[chatbot]
+    )
 
 
-            chatbot = gr.Chatbot(
-                height=400,
-                show_label=False,
-                container=True,
-                elem_id="chatbot"
-            )
-
-            search_btn.click(
-                fn=search_click,
-                inputs=[msg, chatbot],
-                outputs=[msg, chatbot]
-            )
-
-            clear_btn.click(
-                fn=clear_chat,
-                inputs=[],
-                outputs=[chatbot]
-            )
-
-            
+    
 
 if __name__ == "__main__":
     server_name = Config.GRADIO_SERVER_NAME
