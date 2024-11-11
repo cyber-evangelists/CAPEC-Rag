@@ -27,7 +27,6 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deployment_key
           chmod 600 ~/.ssh/deployment_key
           eval "$(ssh-agent -s)"
-          # Add the private key to the agent and provide the passphrase non-interactively
           echo "$VM_PASSPHRASE" | ssh-add ~/.ssh/deployment_key
 
       - name: Add VM to known_hosts  
@@ -36,9 +35,9 @@ jobs:
 
       - name: Synchronize Code with VM Using rsync
         env:
-          RSYNC_RSH: "ssh -i ~/.ssh/deployment_key -o IdentitiesOnly=yes"  # Explicitly specify the SSH key for rsync
+          RSYNC_RSH: "ssh -i ~/.ssh/deployment_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o MaxAuthTries=1"
         run: |
-          rsync -avz --checksum --exclude='.git' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/dev/
+          rsync -avz --checksum --exclude='.env' --exclude='.git' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/dev/
 
       - name: Restart Docker Compose Services  
         uses: appleboy/ssh-action@v0.1.6  
