@@ -42,8 +42,8 @@ jobs:
           script: |  
             echo "Stopping existing Docker Compose services..."  
             cd /home/dev/CAPEC-Rag/
-            echo "${{ secrets.PASSWORD }}" | sudo -S docker-compose down  
+            echo "docker-compose down  
             echo "Starting Docker Compose services..." 
-            echo "${{ secrets.PASSWORD }}" | sudo -S docker-compose build --no-cache
-            echo "${{ secrets.PASSWORD }}" | sudo -S docker-compose up -d  
+            echo docker-compose build --no-cache
+            echo docker-compose up -d  
             echo "Successfully deployed the application!"
