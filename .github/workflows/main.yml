@@ -29,7 +29,7 @@ jobs:
         env:
           PASSWORD: ${{ secrets.PASSWORD }}
         run: |
-          sshpass -p "$PASSWORD" rsync -avz --exclude='.git' --exclude='.env' -e "ssh -o StrictHostKeyChecking=no" ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/devops/CAPEC-Rag/
+          sshpass -p "$PASSWORD" rsync -avz --exclude='.git' --exclude='.env' -e "ssh -o StrictHostKeyChecking=no" ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/dev/CAPEC-Rag/
 
       - name: Restart Docker Compose Services  
         uses: appleboy/ssh-action@v0.1.6  
@@ -39,7 +39,7 @@ jobs:
           password: ${{ secrets.PASSWORD }}
           script: |  
             echo "Stopping existing Docker Compose services..."  
-            cd /home/devops/CAPEC-Rag/ 
+            cd /home/dev/CAPEC-Rag/ 
             sudo docker-compose down  
             echo "Starting Docker Compose services..." 
             sudo docker-compose build --no-cache
