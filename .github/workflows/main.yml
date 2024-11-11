@@ -35,7 +35,7 @@ jobs:
 
       - name: Synchronize Code with VM Using rsync
         env:
-          RSYNC_RSH: "ssh -i ~/.ssh/deployment_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o MaxAuthTries=1"
+          RSYNC_RSH: "ssh -i ~/.ssh/deployment_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
         run: |
           rsync -avz --checksum --exclude='.env' --exclude='.git' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/dev/
 
