@@ -33,22 +33,13 @@ jobs:
           chmod 600 ~/.ssh/deployment_key
           echo "$VM_PASSPHRASE" | ssh-add ~/.ssh/deployment_key
 
-      - name: Ensure SSH Config File Exists
-        run: |
-          # Ensure the SSH config file exists
-          mkdir -p ~/.ssh
-          if [ ! -f ~/.ssh/config ]; then
-            echo -e "Host *\n  IdentitiesOnly yes\n  StrictHostKeyChecking accept-new\n  LogLevel VERBOSE" > ~/.ssh/config
-          fi
-          chmod 600 ~/.ssh/config
-
       - name: Add VM to known_hosts  
         run: |  
           ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts  
 
       - name: Synchronize Code with VM Using rsync
         env:
-          RSYNC_RSH: "ssh -i ~/.ssh/deployment_key -F ~/.ssh/config -o LogLevel=DEBUG"
+          RSYNC_RSH: "ssh -i ~/.ssh/deployment_key -o IdentitiesOnly=yes"
         run: |
           rsync -avz --checksum --exclude='.env' --exclude='.git' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/dev/
 
@@ -56,7 +47,7 @@ jobs:
         uses: appleboy/ssh-action@v0.1.6  
         with:  
           host: ${{ secrets.VM_HOST }}  
-          username: ${{ secrets.VM_USER }}  
+          username: dev  # Use the 'dev' user instead of 'root'
           key: ${{ secrets.SSH_PRIVATE_KEY }}  
           script: |  
             echo "Stopping existing Docker Compose services..."  
