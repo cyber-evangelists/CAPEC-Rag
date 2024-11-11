@@ -1,59 +1,35 @@
-name: Deployment CAPEC-Rag
+name: Test SSH Connection to VPS
 
-on:  
-  push:  
-    branches: 
-      - main  
+on:
+  push:
+    branches:
+      - main
 
-jobs:  
-  deploy-to-vm:  
-    runs-on: ubuntu-latest  
+jobs:
+  test-ssh:
+    runs-on: ubuntu-latest
 
-    steps:  
-      - name: Checkout Repository  
-        uses: actions/checkout@v3  
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      - name: Install SSH Agent and Tools  
+      - name: Install SSH Tools
         run: |
           sudo apt-get update
           sudo apt-get install -y openssh-client
 
-      - name: Set up SSH with passphrase  
+      - name: Set up SSH Key
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          VM_PASSPHRASE: ${{ secrets.VM_PASSPHRASE }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }} # The private key you stored in GitHub Secrets
         run: |
-          # Start SSH Agent if it's not already running
-          if [ -z "$SSH_AGENT_PID" ]; then
-            eval "$(ssh-agent -s)"
-          fi
-          # Set up the SSH directory and key
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deployment_key
           chmod 600 ~/.ssh/deployment_key
-          echo "$VM_PASSPHRASE" | ssh-add ~/.ssh/deployment_key
 
-      - name: Add VM to known_hosts  
-        run: |  
-          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts  
-
-      - name: Synchronize Code with VM Using rsync
-        env:
-          RSYNC_RSH: "ssh -i ~/.ssh/deployment_key -o IdentitiesOnly=yes"
+      - name: Add VM to known_hosts
         run: |
-          rsync -avz --checksum --exclude='.env' --exclude='.git' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/dev/
+          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Restart Docker Compose Services  
-        uses: appleboy/ssh-action@v0.1.6  
-        with:  
-          host: ${{ secrets.VM_HOST }}  
-          username: dev  # Use the 'dev' user instead of 'root'
-          key: ${{ secrets.SSH_PRIVATE_KEY }}  
-          script: |  
-            echo "Stopping existing Docker Compose services..."  
-            cd /home/dev/
-            sudo docker-compose down  
-            echo "Starting Docker Compose services..."  
-            sudo docker-compose build --no-cache
-            sudo docker-compose up -d  
-            echo "Successfully deployed the application!"
+      - name: Test SSH Connection to VPS
+        run: |
+          ssh -i ~/.ssh/deployment_key dev@${{ secrets.VM_HOST }} "echo SSH connection successful!"
