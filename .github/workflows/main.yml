@@ -23,12 +23,18 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           VM_PASSPHRASE: ${{ secrets.VM_PASSPHRASE }}
         run: |
+          # Clear any previously loaded keys
+          ssh-add -D
+          # Set up the SSH directory and key
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deployment_key
           chmod 600 ~/.ssh/deployment_key
           eval "$(ssh-agent -s)"
-          ssh-add -D  # Clear any other SSH keys
           echo "$VM_PASSPHRASE" | ssh-add ~/.ssh/deployment_key
+
+      - name: Configure SSH Settings  
+        run: |
+          echo -e "Host *\n  IdentitiesOnly yes\n  StrictHostKeyChecking accept-new\n  LogLevel VERBOSE" > ~/.ssh/config
 
       - name: Add VM to known_hosts  
         run: |  
@@ -36,7 +42,7 @@ jobs:
 
       - name: Synchronize Code with VM Using rsync
         env:
-          RSYNC_RSH: "ssh -i ~/.ssh/deployment_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          RSYNC_RSH: "ssh -i ~/.ssh/deployment_key -F ~/.ssh/config -o LogLevel=DEBUG"
         run: |
           rsync -avz --checksum --exclude='.env' --exclude='.git' ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/dev/
 
