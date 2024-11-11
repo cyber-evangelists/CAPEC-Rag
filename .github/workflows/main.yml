@@ -27,6 +27,7 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deployment_key
           chmod 600 ~/.ssh/deployment_key
           eval "$(ssh-agent -s)"
+          ssh-add -D  # Clear any other SSH keys
           echo "$VM_PASSPHRASE" | ssh-add ~/.ssh/deployment_key
 
       - name: Add VM to known_hosts  
