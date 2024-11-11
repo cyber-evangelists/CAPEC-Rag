@@ -33,9 +33,12 @@ jobs:
           chmod 600 ~/.ssh/deployment_key
           echo "$VM_PASSPHRASE" | ssh-add ~/.ssh/deployment_key
 
-      - name: Configure SSH Settings  
+      - name: Create SSH Config File
         run: |
+          # Create an SSH config file to avoid the "No such file or directory" error
+          mkdir -p ~/.ssh
           echo -e "Host *\n  IdentitiesOnly yes\n  StrictHostKeyChecking accept-new\n  LogLevel VERBOSE" > ~/.ssh/config
+          chmod 600 ~/.ssh/config
 
       - name: Add VM to known_hosts  
         run: |  
