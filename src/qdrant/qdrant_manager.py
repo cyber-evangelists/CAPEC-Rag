@@ -5,9 +5,7 @@ from qdrant_client.http.models import VectorParams
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from llama_index.core import VectorStoreIndex, StorageContext, load_index_from_storage
 from src.config.config import Config
-from datetime import datetime
 import os
-import json
 from loguru import logger
 
 class QdrantManager:
@@ -19,7 +17,6 @@ class QdrantManager:
         self.collection_name = collection_name
         logger.info(f"Initializing QdrantManager with host: {self.host}, port: {self.port}, collection: {self.collection_name}")
         self.client = self._connect_to_qdrant()
-        
 
     def _connect_to_qdrant(self) -> QdrantClient:
         """ Connects to the Qdrant server and returns the client instance. """
@@ -65,26 +62,14 @@ class QdrantManager:
                 logger.warning("No documents provided for indexing.")
                 return None
             
-            self.ensure_collection_exists()
             logger.info("Indexing documents into vector store...")
             index = VectorStoreIndex.from_documents(docs, storage_context=storage_context, embed_model=embed_model)
             index.storage_context.persist(persist_dir=persist_dir)
-
-            metadata = {
-                "saved_at": datetime.now().isoformat(),
-                "index_name": "CAPEC-INDEX",
-                "num_nodes": len(index.docstore.docs)
-            }
-            
-            with open(os.path.join(persist_dir, "metadata.json"), "w") as f:
-                json.dump(metadata, f, indent=2)
-
             logger.info("Data ingested into VectorDb and index persisted successfully.")
             return index
         except Exception as e:
             logger.error(f"Failed to create and persist index: {str(e)}")
             raise
-        
 
     def load_index(self, persist_dir: str, embed_model: Optional[Any] = None) -> VectorStoreIndex:
         """ Load the index from disk. """
@@ -93,9 +78,9 @@ class QdrantManager:
             vector_store = self.initialize_vector_store()
             
             if os.path.isdir(persist_dir):
-                storage_context = StorageContext.from_defaults(persist_dir=persist_dir)
+                storage_context = StorageContext.from_defaults(persist_dir=persist_dir, vector_store=vector_store)
                 loaded_index = load_index_from_storage(storage_context=storage_context, embed_model=embed_model)
-                logger.info(f"num_nodes {len(loaded_index.docstore.docs)}")
+                logger.info(f"Index successfully loaded from {persist_dir}")
                 return loaded_index
             else:
                 logger.error(f"Persist directory not found: {persist_dir}.")
@@ -104,6 +89,3 @@ class QdrantManager:
         except Exception as e:
             logger.error(f"An error occurred while loading index: {str(e)}")
             raise
-
-
-        #  vector_store=vector_store
