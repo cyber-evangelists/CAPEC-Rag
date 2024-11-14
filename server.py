@@ -1,51 +1,36 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from loguru import logger
 from src.utils.utils import find_file_names
 from llama_index.core.vector_stores.types import MetadataFilters, ExactMatchFilter
 
-
-import asyncio
 from typing import Dict, Any, List, Optional
 
 from src.config.config import Config
 from src.embedder.embedder_llama_index import EmbeddingWrapper
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core import Settings
-from src.parser.csv_parser import CsvParser
 Settings.llm = None
 
-from src.llm.groqwrapper import GroqWrapper
-from loguru import logger
-
-from src.llm.groqwrapper import GroqWrapper
 from src.qdrant.qdrant_manager import QdrantManager
-from src.parser.threatmon_parser import FileProcessor
-from src.utils.utils import prepare_prompt, rerank_docs
 from src.utils.connections_manager import ConnectionManager
-from src.config.config import Config
-
-from llama_index.core import  StorageContext
+from src.chatbot.rag_chat_bot import RAGChatBot
+from src.reranker.re_ranking import RerankDocuments
 
 import os
 
 app = FastAPI()
 
-# Initialize all clients/wrappers
-groq_client = GroqWrapper()
-file_processor = FileProcessor()
+chatbot = RAGChatBot()
 
 collection_name = Config.COLLECTION_NAME
 qdrantManager = QdrantManager(Config.QDRANT_HOST, Config.QDRANT_PORT, collection_name)
 
 embedding_client = EmbeddingWrapper()
 
-# data_dir = Config.CAPEC_DATA_DIR
 
-# storage_context = StorageContext.from_defaults()
+data_dir = Config.CAPEC_DATA_DIR
 
-# csvParser = CsvParser(data_dir)
-# documents = csvParser.process_directory()
-# index = qdrantManager.create_and_persist_index(documents, storage_context, embedding_client, Config.PERSIST_DIR)
+reranker = RerankDocuments()
 
 index = qdrantManager.load_index(persist_dir=Config.PERSIST_DIR, embed_model=embedding_client)
 
@@ -77,7 +62,7 @@ async def handle_search(websocket: WebSocket, query: str) -> None:
         Exception: Any unexpected errors during the search process.
     """
     try:
-        logger.info(f"Processing search query: {query}")
+        logger.info(f"Processing search query")
 
         filename = find_file_names(query, database_files)
 
@@ -93,16 +78,15 @@ async def handle_search(websocket: WebSocket, query: str) -> None:
             logger.info("Searching without file names....")
             relevant_nodes = retriever.retrieve(query)
 
+
         context = [node.text for node in relevant_nodes]
+        logger.info(context)
 
-        logger.info(context[:2])
-        prompt = prepare_prompt(query, context[:2])
+        reranked_docs =  reranker.rerank_docs(query, context)
+        
+        response = chatbot.chat(query, reranked_docs[:2])
 
-        # Generate response using Groq
         logger.info("Generating response from Groq")
-        response = groq_client.get_response(prompt)
-
-        # response = "Answer"
 
         await websocket.send_json({
             "result": response
@@ -154,5 +138,4 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     finally:
         connection_manager.disconnect(websocket)
         
-
 
