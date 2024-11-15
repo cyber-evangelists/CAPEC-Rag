@@ -1,49 +1,52 @@
 name: Vulnerability
 
-on:  
-  push:  
-    branches: 
-      - main 
+on:
+  push:
+    branches:
+      - master
 
-jobs:  
-  deployment:  
-    runs-on: ubuntu-latest  
+jobs:
+  deployment:
+    runs-on: ubuntu-latest
 
-    steps:  
-      - name: Checkout Repository  
-        uses: actions/checkout@v3  
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      - name: Install sshpass  
+      - name: Install sshpass
         run: sudo apt-get install -y sshpass
 
-      - name: Add VM to known_hosts  
-        run: |  
-          mkdir -p ~/.ssh  
-          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts  
+      - name: Setup SSH key for authentication
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEV_KEY_PEM }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
 
-      - name: Verify known_hosts Entry  
+      - name: Add VM to known_hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Verify known_hosts Entry
         run: |
           cat ~/.ssh/known_hosts  # Optional step to confirm the host is added
 
-      - name: Synchronize Code with VM Using rsync and sshpass  
-        env:
-          PASSWORD: ${{ secrets.PASSWORD }}
+      - name: Synchronize Code with VM Using rsync and SSH key
         run: |
-          sshpass -p "$PASSWORD" rsync -avz --exclude='.git' --exclude='.env' \
+          rsync -avz --exclude='.git' --exclude='.env' \
           --no-perms --omit-dir-times --no-group \
-          -e "ssh -o StrictHostKeyChecking=no" ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/dev/CAPEC-Rag/
+          -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa" ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/dev/CAPEC-Rag/
 
-      - name: Restart Docker Compose Services  
-        uses: appleboy/ssh-action@v0.1.6  
-        with:  
-          host: ${{ secrets.VM_HOST }}  
+      - name: Restart Docker Compose Services
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
-          password: ${{ secrets.PASSWORD }}
-          script: |  
-            echo "Stopping existing Docker Compose services..."  
+          key: ${{ secrets.DEV_KEY_PEM }}
+          script: |
+            echo "Stopping existing Docker Compose services..."
             cd /home/dev/CAPEC-Rag/
-            docker-compose down  
-            echo "Starting Docker Compose services..." 
+            docker-compose down
+            echo "Starting Docker Compose services..."
             docker-compose build --no-cache
-            docker-compose up -d  
+            docker-compose up -d
             echo "Successfully deployed the application!"
