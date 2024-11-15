@@ -6,7 +6,7 @@ services:
   server:
     build:
       context: .
-      dockerfile: Dockerfile.server
+      dockerfile: src/docker-files/Dockerfile.server
     ports:
       - "8000:8000"
     networks:
@@ -20,7 +20,7 @@ services:
   client:
     build:
       context: .
-      dockerfile: Dockerfile.client
+      dockerfile: src/docker-files/Dockerfile.client
     networks:
       - capec-network
     ports:

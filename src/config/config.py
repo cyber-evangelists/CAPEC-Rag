@@ -32,5 +32,7 @@ class Config:
     QDRANT_HOST = "qdrant"
     QDRANT_PORT = 6333
 
-    EMBEDDING_MODEL_PATH = "./src/embedder/model/"
+    EMBEDDING_MODEL_PATH = "./src/embedder/embedding_model/"
+    RERANKING_MODEL_PATH = "./src/reranker/re_ranker_model/"
+
 
