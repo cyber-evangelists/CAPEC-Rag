@@ -32,8 +32,9 @@ jobs:
 
       - name: Synchronize Code with VM Using rsync and SSH key
         run: |
-          rsync -avz --exclude='.git' --exclude='.env' \
-          --no-perms --omit-dir-times --no-group \
+          rsync -avz --exclude='.git' --exclude='.env' --exclude='capec-dataset' \
+          --exclude='src/embedder/embedding_model' --exclude='src/index/index' \
+          --exclude='src/reranker/re_ranker_model' --no-perms --omit-dir-times --no-group \
           -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa" ./ ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:/home/dev/CAPEC-Rag/
 
       - name: Restart Docker Compose Services
