@@ -167,6 +167,10 @@ class WebSocketClient:
                         return "", updated_history
                     elif action == "ingest_data":
                         return result, []
+                    elif action == "positive":
+                        return result, []
+                    elif action == "negative":
+                        return result, []
 
                 error = response_data.get("error")
                 if error:

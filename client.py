@@ -44,6 +44,25 @@ def clear_chat() -> Optional[List[Tuple[str, str]]]:
         return None
 
 
+
+async def record_feedback(feedback, msg ) -> gr.Info:
+    """
+    Handle the data ingestion process.
+
+    Args:
+        ws_client (WebSocketClient): The WebSocket client instance.
+
+    Returns:
+        gr.Info: A Gradio info or warning message.
+    """
+
+    logger.info(feedback)
+    logger.info(msg)
+
+    message, _ = await ws_client.handle_request(feedback, {"comment": msg})
+    return gr.Info(message) if "success" in message.lower() else gr.Warning(message), ""
+
+
 with gr.Blocks(
     title="CAPEC RAG Chatbot",
     theme=gr.themes.Soft(),
@@ -83,7 +102,10 @@ with gr.Blocks(
             display: flex;
             flex-direction: column;
             overflow-y: auto; /* To allow scrolling if content overflows */
-            min-height: 72vh; 
+            min-height: 62vh; 
+        }
+        #feedback-button {
+            max-width: 0.25vh;
         }
         .gr-button-primary {
             background-color: #008080;
@@ -106,6 +128,18 @@ with gr.Blocks(
         container=True,
         elem_id="chatbot"
     )
+
+    with gr.Row(elem_id="feedback-container"):
+        thumbs_up = gr.Button("👍", elem_id="feedback-button")
+        thumbs_down = gr.Button("👎", elem_id="feedback-button")
+        feedback_msg = gr.Textbox(
+            placeholder="Type a comment...",
+            show_label=False,
+            container=False,
+            lines=1,
+            scale=10,
+        )
+        status_box = gr.Textbox(visible=False)
 
     # Chat Input Row
     with gr.Row(elem_id="input-container"):
@@ -132,8 +166,18 @@ with gr.Blocks(
         outputs=[chatbot]
     )
 
-
+    thumbs_up.click(
+                fn=record_feedback,
+                inputs=[gr.Textbox(value="positive", visible=False), feedback_msg],
+                outputs=[status_box, feedback_msg]
+            )
     
+    thumbs_down.click(
+                fn=record_feedback,
+                inputs=[gr.Textbox(value="negative", visible=False), feedback_msg],
+                outputs=[status_box, feedback_msg]
+            )
+
 
 if __name__ == "__main__":
     server_name = Config.GRADIO_SERVER_NAME

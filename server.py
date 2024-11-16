@@ -80,11 +80,13 @@ async def handle_search(websocket: WebSocket, query: str) -> None:
 
 
         context = [node.text for node in relevant_nodes]
-        logger.info(context)
-
+    
         reranked_docs =  reranker.rerank_docs(query, context)
         
-        response = chatbot.chat(query, reranked_docs[:2])
+        # only top 2 documents are passing as a context
+        response, conversation_id  = chatbot.chat(query, reranked_docs[:2])
+
+
 
         logger.info("Generating response from Groq")
 
@@ -96,6 +98,26 @@ async def handle_search(websocket: WebSocket, query: str) -> None:
         logger.error(f"Error in search handling: {str(e)}")
         await websocket.send_json({
             "error": f"Search failed: {str(e)}"
+        })
+
+async def add_feedback(websocket: WebSocket, action:str,  comment: str) -> None:
+
+    try:
+        logger.info(f"in the add feedback function...")
+
+        logger.info(action)
+        logger.info(comment)
+
+        chatbot.add_feedback(action, comment)
+
+        await websocket.send_json({
+            "result": "Feedback added successfully"
+        })
+
+    except Exception as e:
+        logger.error(f"Error in search handling: {str(e)}")
+        await websocket.send_json({
+            "error": f"Feedback Addition failed: {str(e)}"
         })
 
 
@@ -125,9 +147,12 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             if not action:
                 await websocket.send_json({"error": "No action specified"})
                 continue
-
-            if action == "search":
+            elif  action == "search":
                 await handle_search(websocket, payload["query"])
+            elif action == "positive":
+                 await add_feedback(websocket, action , payload["comment"])
+            elif action == "negative":
+                 await add_feedback(websocket, action , payload["comment"])
             else:
                 await websocket.send_json({"error": f"Unknown action: {action}"})
 
