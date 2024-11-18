@@ -48,6 +48,9 @@ jobs:
             cd /home/dev/CAPEC-Rag/
             echo "${{ secrets.DEV_PASS }}" | sudo -S docker-compose down
             echo "Starting Docker Compose services..."
+            echo "Enabling Docker BuildKit..."
+            export DOCKER_BUILDKIT=1  
+            echo "Starting Docker Compose services..."
             echo "${{ secrets.DEV_PASS }}" | sudo -S docker-compose build --no-cache
             echo "${{ secrets.DEV_PASS }}" | sudo -S docker-compose up -d
             echo "Successfully deployed the application!"
