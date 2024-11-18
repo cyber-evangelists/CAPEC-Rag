@@ -8,17 +8,32 @@ from loguru import logger
 
 from src.config.config import Config
 from src.websocket.web_socket_client import WebSocketClient
+from src.guardrails.guardrails import GuardRails
 
 
 ws_client = WebSocketClient(Config.WEBSOCKET_URI)
+guardrails_model = GuardRails()
 
 
 async def search_click(msg, history):
-    return await ws_client.handle_request(
-        "search",
-        {"query": msg, "history": history if history else []}
-    )
 
+    response = int(guardrails_model.classify_prompt(msg))
+
+    if response == 0:
+        return await ws_client.handle_request(
+            "search",
+            {"query": msg, "history": history if history else []}
+        )
+    else:
+        return await return_protection_message(msg, history)
+
+
+async def return_protection_message(msg, history):
+
+    new_message = (msg, "Your query appears a prompt injection. I would prefer Not to answer it.")
+    updated_history = history + [new_message]
+    return "", updated_history
+                    
 
 async def handle_ingest() -> gr.Info:
     """

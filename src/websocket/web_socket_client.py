@@ -8,8 +8,6 @@ from loguru import logger
 from src.config.config import Config
 
 
-
-
 class WebSocketClient:
     def __init__(self, uri: str = "ws://rag-server:8000/ws"):
         self.uri = uri
