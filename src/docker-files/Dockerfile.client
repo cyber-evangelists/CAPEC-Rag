@@ -11,6 +11,9 @@ COPY client-requirements.txt .
 RUN pip install --upgrade pip && \
     pip install -r client-requirements.txt
 
+RUN pip install transformers==4.46.2
+RUN pip install  torch==2.5.1
+
 # Copy only the required files for the application
 COPY client.py .
 COPY src/ ./src/

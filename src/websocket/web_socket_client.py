@@ -8,8 +8,6 @@ from loguru import logger
 from src.config.config import Config
 
 
-
-
 class WebSocketClient:
     def __init__(self, uri: str = "ws://rag-server:8000/ws"):
         self.uri = uri
@@ -166,6 +164,10 @@ class WebSocketClient:
                         updated_history = history + [new_message]
                         return "", updated_history
                     elif action == "ingest_data":
+                        return result, []
+                    elif action == "positive":
+                        return result, []
+                    elif action == "negative":
                         return result, []
 
                 error = response_data.get("error")
