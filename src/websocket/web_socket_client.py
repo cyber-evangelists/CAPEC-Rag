@@ -1,9 +1,12 @@
-import gradio as gr
 import websockets
 import json
 import asyncio
 from typing import Tuple, List, Optional, Dict, Any
 from loguru import logger
+
+from bidi.algorithm import get_display
+import unicodedata
+
 
 from src.config.config import Config
 
@@ -19,6 +22,16 @@ class WebSocketClient:
             self.websocket = await websockets.connect(self.uri)
             logger.info("Connected to WebSocket server")
         return self.websocket
+
+    async def get_text_direction(self, text: str):
+        # Use Unicode character properties to check if the text is RTL
+        for char in text:
+            # Simulate asynchronous behavior (if needed for consistency)
+            if unicodedata.bidirectional(char) in ['R', 'AL']:  # Right-to-left or Arabic Letter
+                return "right"
+        return "left"
+
+    
         
     async def disconnect(self):
         if self.websocket:
@@ -104,12 +117,6 @@ class WebSocketClient:
         """
 
         logger.info("Into handle search function..")
-
-        if action ==  "search":
-            query = payload["query"]
-            if not query.strip():
-                logger.error(f"No input provided")
-                return "", [(payload.get("query", ""), "No query Entered")]
             
         try:
             
@@ -159,10 +166,14 @@ class WebSocketClient:
                 result = response_data.get("result", "No response from server")
                 if result:
                     if action == "search":
+                        direction = await self.get_text_direction(result)
+
+                        logger.info(direction)
+
                         history = payload.get("history", [])
                         new_message = (payload.get("query", ""), result)
                         updated_history = history + [new_message]
-                        return "", updated_history
+                        return "", result, direction
                     elif action == "ingest_data":
                         return result, []
                     elif action == "positive":
