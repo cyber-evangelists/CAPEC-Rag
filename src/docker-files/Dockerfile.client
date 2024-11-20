@@ -13,8 +13,6 @@ RUN pip install --upgrade pip && \
 
 # Copy only the required files for the application
 COPY client.py .
-COPY src/ ./src/
-
 
 # Run the application
 CMD ["python", "client.py"]
