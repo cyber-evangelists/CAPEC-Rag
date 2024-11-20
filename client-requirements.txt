@@ -4,3 +4,4 @@ websockets
 python-dotenv==1.0.1
 transformers==4.46.2
 torch==2.5.1
+python-bidi
