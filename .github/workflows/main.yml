@@ -43,7 +43,7 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.DEV_KEY_PEM }}
-          timeout: 1h
+          timeout: 2h
           script: |
             echo "Stopping existing Docker Compose services..."
             cd /home/dev/CAPEC-Rag/
