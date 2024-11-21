@@ -10,10 +10,6 @@ RUN pip install --upgrade pip && \
     pip install -r requirements.txt
     
 COPY server.py .
-COPY src/ ./src/
-COPY .env .
-COPY capec-dataset/ ./capec-dataset/
-
 
 # Set Python to run in unbuffered mode
 ENV PYTHONUNBUFFERED=1

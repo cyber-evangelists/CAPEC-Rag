@@ -6,38 +6,37 @@ from llama_index.core.vector_stores.types import MetadataFilters, ExactMatchFilt
 from typing import Dict, Any, List, Optional
 
 from src.config.config import Config
+from src.qdrant.qdrant_utils import QdrantWrapper
 from src.embedder.embedder_llama_index import EmbeddingWrapper
-from llama_index.core.retrievers import VectorIndexRetriever
+from src.parser.csv_parser import CsvParser
 from llama_index.core import Settings
 Settings.llm = None
 
-from src.qdrant.qdrant_manager import QdrantManager
 from src.utils.connections_manager import ConnectionManager
 from src.chatbot.rag_chat_bot import RAGChatBot
 from src.reranker.re_ranking import RerankDocuments
 
-import os
-
 app = FastAPI()
 
 chatbot = RAGChatBot()
+file_processor = CsvParser(data_dir = Config.DATA_DIRECTORY)
 
 collection_name = Config.COLLECTION_NAME
-qdrantManager = QdrantManager(Config.QDRANT_HOST, Config.QDRANT_PORT, collection_name)
-
+qdrant_client = QdrantWrapper()
 embedding_client = EmbeddingWrapper()
 
 
-data_dir = Config.CAPEC_DATA_DIR
+try:
+
+    processed_chunks = file_processor.process_directory()
+    qdrant_client.ingest_embeddings(processed_chunks)
+
+    logger.info("Successfully ingested Data")
+
+except Exception as e:
+    logger.error(f"Error in data ingestion: {str(e)}")
 
 reranker = RerankDocuments()
-
-index = qdrantManager.load_index(persist_dir=Config.PERSIST_DIR, embed_model=embedding_client)
-
-retriever = VectorIndexRetriever(
-            index=index,
-            similarity_top_k=5
-        )
 
 # Manually added file names of the CAPEC daatset. In production, These files will be fetched from database
 database_files = ["333.csv", "658.csv", "659.csv", "1000.csv", "3000.csv"]
@@ -66,27 +65,26 @@ async def handle_search(websocket: WebSocket, query: str) -> None:
 
         filename = find_file_names(query, database_files)
 
-        if filename:
-            logger.info("Searching for file names...")
+        query_embeddings = embedding_client.generate_embeddings(query)
 
-            filters = MetadataFilters(filters=[ExactMatchFilter(key="source_file", value=filename)])
-            relevant_nodes =  index.as_retriever(filters=filters).retrieve(query)
-            if not relevant_nodes:
-                logger.info("Searching without file name filter....")
-                relevant_nodes = retriever.retrieve(query)
-        else:
-            logger.info("Searching without file names....")
-            relevant_nodes = retriever.retrieve(query)
+        top_5_results = qdrant_client.search(query_embeddings, 5)
+        logger.info("Retrieved top 5 results")
 
-
-        context = [node.text for node in relevant_nodes]
-    
-        reranked_docs =  reranker.rerank_docs(query, context)
+        if not top_5_results:
+            logger.warning("No results found in database")
+            await websocket.send_json({
+                "result": "The database is empty. Please ingest some data first before searching."
+            })
+            return
         
+
+        reranked_docs = reranker.rerank_docs(query, top_5_results)
+        reranked_top_5_list = [item['content'] for item in reranked_docs]
+
+        context = reranked_top_5_list[:2]
+
         # only top 2 documents are passing as a context
-        response, conversation_id  = chatbot.chat(query, reranked_docs[:2])
-
-
+        response, conversation_id  = chatbot.chat(query, context)
 
         logger.info("Generating response from Groq")
 

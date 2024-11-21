@@ -27,10 +27,11 @@ class RerankDocuments:
         """
         # Re-ranking using cross-encoder
         # Prepare pairs for reranking
-        pairs = [[query, doc] for doc in top_5_results]
+         # Prepare pairs for reranking
+        pairs = [[query, doc["content"]] for doc in top_5_results]
 
         # Get relevance scores
-        scores = self.reranker.predict(pairs) 
+        scores = self.reranker.predict(pairs)
 
         # Sort by new scores
         reranked_results = [

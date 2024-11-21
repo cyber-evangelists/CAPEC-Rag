@@ -13,9 +13,22 @@ services:
       - capec-network
     hostname: rag-server
     volumes:
+      - ./src:/app/src
+      - ./capec-dataset:/app/capec-dataset
+      - ./.env:/app/.env
       - ./src/index/index/:/app/src/index/index/
     environment:
       - TOKENIZERS_PARALLELISM=false
+    command:
+      [
+        "uvicorn",
+        "server:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload"
+      ]
 
   client:
     build:
@@ -28,6 +41,11 @@ services:
     environment:
       - SERVER_HOST=rag-server
       - SERVER_PORT=8000
+    volumes:
+      - ./src:/app/src
+      - ./client.py:/app/client.py
+      - ./client-requirements.txt:/app/client-requirements.txt
+    command: ["python", "client.py"]
 
   qdrant:
     image: qdrant/qdrant:v0.10.1

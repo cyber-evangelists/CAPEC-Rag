@@ -13,7 +13,7 @@ class Config:
     GRADIO_SERVER_NAME = "0.0.0.0" 
     GRADIO_SERVER_PORT = int(7860)
     WEBSOCKET_URI = "ws://rag-server:8000/ws"
-    DATA_DIRECTORY = "data/"
+    DATA_DIRECTORY = "capec-dataset/"
     WEBSOCKET_TIMEOUT = 300  # 5 minutes
     HEARTBEAT_INTERVAL = 30  # 30 seconds
     MAX_CONNECTIONS = 100

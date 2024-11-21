@@ -139,5 +139,5 @@ class CsvParser:
                 logger.error(f"Skipping file {file_path} due to error: {str(e)}")
                 continue
         
-        logger.info("All .csv files indexed....")
+        logger.info("All .csv files processed. Returning chunks...")
         return all_documents

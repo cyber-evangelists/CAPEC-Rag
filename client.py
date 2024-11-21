@@ -1,8 +1,5 @@
 import gradio as gr
 import websockets
-import json
-import asyncio
-import logging
 from typing import Tuple, List, Optional, Dict, Any
 from loguru import logger
 
@@ -15,24 +12,41 @@ ws_client = WebSocketClient(Config.WEBSOCKET_URI)
 guardrails_model = GuardRails()
 
 
-async def search_click(msg, history):
+async def search_click(msg: str, history: List[Tuple[str, str]]) -> Tuple[str, List[Tuple[str, str]], gr.Info]:
+
+    if not msg.strip():
+        logger.error(f"No input provided")
+        return "", history,  gr.Warning("Please enter a query.")
 
     response = int(guardrails_model.classify_prompt(msg))
 
     if response == 0:
-        return await ws_client.handle_request(
+        result =  await ws_client.handle_request(
             "search",
             {"query": msg, "history": history if history else []}
         )
+        if result[2] == "right":
+
+            styled_response = (f"<div style='direction: rtl; text-align: right; direction: right;'>{result[1]}</div>")
+        else:
+            styled_response = f"<div style='direction: ltr; text-align: left; direction: left;'>{result[1]}</div>"
+        
+        # Append the styled response to the chat history
+        updated_history = history + [(msg, styled_response)]
+
+
+        return result[0], updated_history, gr.Info("Query Processed")
+
     else:
         return await return_protection_message(msg, history)
 
 
 async def return_protection_message(msg, history):
 
-    new_message = (msg, "Your query appears a prompt injection. I would prefer Not to answer it.")
+    new_message = (msg, "Your query appears inappropriate. Do you have any other question?I am here to help.. ")
     updated_history = history + [new_message]
-    return "", updated_history
+    return "", updated_history, gr.Warning("Query is Inapproprite..")
+
                     
 
 async def handle_ingest() -> gr.Info:
@@ -74,6 +88,11 @@ async def record_feedback(feedback, msg ) -> gr.Info:
     logger.info(feedback)
     logger.info(msg)
 
+
+    if not msg.strip():
+        logger.error(f"No Comments provided")
+        return gr.Info("Please Enter Some Feed back First"), ""
+
     message, _ = await ws_client.handle_request(feedback, {"comment": msg})
     return gr.Info(message) if "success" in message.lower() else gr.Warning(message), ""
 
@@ -107,7 +126,7 @@ with gr.Blocks(
             margin-top: 0.25rem;
             flex: 0 0 auto;
         }
-        #chatbot {
+        #chatbot-left {
             border: 1px solid #E5E7EB;
             border-radius: 8px;
             background-color: #FFFFFF;
@@ -118,6 +137,24 @@ with gr.Blocks(
             flex-direction: column;
             overflow-y: auto; /* To allow scrolling if content overflows */
             min-height: 62vh; 
+            text-direction: left;
+            direction: left;
+            text-align: left;
+        }
+        #chatbot-right {
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            background-color: #FFFFFF;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto; /* To allow scrolling if content overflows */
+            min-height: 62vh; 
+            text-direction: right;
+            direction: right;
+            text-align: right;
         }
         #feedback-button {
             max-width: 0.25vh;
@@ -141,7 +178,7 @@ with gr.Blocks(
     chatbot = gr.Chatbot(
         show_label=False,
         container=True,
-        elem_id="chatbot"
+        elem_id="chatbot-left"
     )
 
     with gr.Row(elem_id="feedback-container"):
@@ -173,7 +210,7 @@ with gr.Blocks(
     send_button.click(
         fn=search_click,
         inputs=[msg, chatbot],
-        outputs=[msg, chatbot]
+        outputs=[msg, chatbot, status_box]
     )
     clear_button.click(
         fn=clear_chat,
@@ -203,4 +240,3 @@ if __name__ == "__main__":
         share=False,
         debug=True,
         show_error=True,)
-
