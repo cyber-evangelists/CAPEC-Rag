@@ -38,7 +38,6 @@ services:
       - capec-network
     ports:
       - "127.0.0.1:7860:7860"
-    hostname: rag-client
     environment:
       - SERVER_HOST=rag-server
       - SERVER_PORT=8000
