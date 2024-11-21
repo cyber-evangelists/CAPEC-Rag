@@ -8,7 +8,7 @@ services:
       context: .
       dockerfile: src/docker-files/Dockerfile.server
     ports:
-      - "127.0.0.01:8000:8000"
+      - "127.0.0.1:8000:8000"
     networks:
       - capec-network
     hostname: rag-server
@@ -37,7 +37,7 @@ services:
     networks:
       - capec-network
     ports:
-      - "127.0.0.01:7860:7860"
+      - "127.0.0.1:7860:7860"
     hostname: rag-client
     environment:
       - SERVER_HOST=rag-server
@@ -51,8 +51,8 @@ services:
   qdrant:
     image: qdrant/qdrant:v0.10.1
     ports:
-      - "127.0.0.01:6333:6333"
-      - "127.0.0.01:6334:6334"
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
     volumes:
       - qdrant_storage:/qdrant/storage
     networks:
