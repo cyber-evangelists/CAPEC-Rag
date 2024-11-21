@@ -52,6 +52,7 @@ class QdrantWrapper:
                 self.client.get_collections()
                 logger.info("Successfully connected to Qdrant")
                 self._create_collection_if_not_exists()
+                self.clear_collection()
                 break
             except Exception as e:
                 logger.error(f"Connection attempt {attempt + 1} failed: {str(e)}")
