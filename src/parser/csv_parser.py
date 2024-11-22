@@ -1,37 +1,44 @@
 
 import pandas as pd
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TypedDict
 from pathlib import Path
 import numpy as np
-from llama_index.core.schema import Document
-from llama_index.core.node_parser import SentenceSplitter
+from src.embedder.embedder import EmbeddingWrapper
 
 from datetime import datetime
 from dataclasses import dataclass
-
 from loguru import logger
-
 from src.config.config import Config
 
+
 @dataclass
-class DocumentMetadata:
+class DocumentMetadata(TypedDict):
     """Class to store document metadata"""
     source_file: str
     ingestion_timestamp: str
     last_updated_timestamp: str
     embedding_version: str
-    embedding_model: str
+    embedding_model_name: str
     processing_status: str
+
+
+
+class ProcessedChunk(TypedDict):
+    """Type definition for processed file chunks."""
+    embeddings: List[float]
+    text: str
+    metadata: str
+
 
 
 class CsvParser:
 
-    def __init__(self, data_dir: str, embedding_version: str =  Config.EMBEDDING_VERSION_NUMBER, embedding_model: str = Config.EMBEDDING_MODEL) -> None:
+    def __init__(self, data_dir: str, embedding_version: str =  Config.EMBEDDING_VERSION_NUMBER, embedding_model_name: str = Config.EMBEDDING_MODEL) -> None:
         self.data_dir = Path(data_dir)
         self.embedding_version = embedding_version
-        self.embedding_model = embedding_model
-        self.node_parser = SentenceSplitter(chunk_size=1200, chunk_overlap=200)
-        
+        self.embedding_model_name = embedding_model_name
+        self.embedder = EmbeddingWrapper()
+        self.chunks: List[ProcessedChunk] = []
 
     def create_document_metadata(self, row: pd.Series, file_name: str,) -> DocumentMetadata:
         """Create comprehensive document metadata"""
@@ -42,7 +49,7 @@ class CsvParser:
             ingestion_timestamp=current_time,
             last_updated_timestamp=current_time,
             embedding_version=self.embedding_version,
-            embedding_model=self.embedding_model,  # In practice, this might be different
+            embedding_model_name=self.embedding_model_name,  # In practice, this might be different
             processing_status="processed",
         )
 
@@ -68,7 +75,7 @@ class CsvParser:
         return df
 
 
-    def process_file(self, file_path: Path) -> List[Document]:
+    def process_file(self, file_path: Path) -> None:
         """Process a single CSV file with enhanced metadata and version control"""
         try:
             logger.info(f"Processing file: {file_path}")
@@ -76,27 +83,27 @@ class CsvParser:
             # Read CSV file
             df = self.read_file(file_path)
                         
-            documents = []
             for _, row in df.iterrows():
                 # Combine text fields
                 text_content = self.get_text(row)
                 
                 # Create comprehensive metadata
                 metadata = self.create_document_metadata(row, file_path.name)
-                
-                # Create Document object with enhanced metadata
-                doc = Document(
-                    text=text_content,
-                    metadata=metadata.__dict__
-                )
+                embeddings = self.embedder.generate_embeddings(text_content)
 
-                nodes = self.node_parser.get_nodes_from_documents([doc])
-                documents.extend(
-                    [Document(text=node.text, metadata=node.metadata) for node in nodes]
-                )
+
+                # Create Document object with enhanced metadata
+                doc : ProcessedChunk = {
+                    "embeddings": embeddings,
+                    "text":text_content,
+                    "metadata":"metadata"
+                }
+
+
+                self.chunks.append(doc)
                             
-            logger.info(f"Successfully processed {len(documents)} documents from {file_path}")
-            return documents
+            logger.info(f"Successfully processed all documents from {file_path}")
+
             
         except Exception as e:
             logger.error(f"Error processing file {file_path}: {str(e)}")
@@ -126,18 +133,18 @@ class CsvParser:
         return " | ".join(text_parts)
 
 
-    def process_directory(self) -> List[Document]:
+    def process_directory(self) -> List[Dict[str, Any]]:
         """Process all CSV files in directory"""
         all_documents = []
         
         logger.info("Attempting to read all .csv files and indexing....")
         for file_path in self.data_dir.glob('*.csv'):
             try:
-                documents = self.process_file(file_path)
-                all_documents.extend(documents)
+                self.process_file(file_path)
             except Exception as e:
                 logger.error(f"Skipping file {file_path} due to error: {str(e)}")
                 continue
+            
         
         logger.info("All .csv files processed. Returning chunks...")
-        return all_documents
+        return self.chunks
