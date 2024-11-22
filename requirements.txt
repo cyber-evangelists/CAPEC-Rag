@@ -7,10 +7,7 @@ langchain-core==0.3.18
 gradio==4.44.1
 loguru==0.7.2
 python-dotenv==1.0.1
-llama-index==0.11.21
-llama-index-vector-stores-qdrant==0.3.3
 langchain-groq==0.2.1
-llama-index-embeddings-huggingface==0.3.1
 langchain==0.3.7
 transformers==4.46.2
 torch==2.5.1

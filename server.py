@@ -1,16 +1,13 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from loguru import logger
 from src.utils.utils import find_file_names
-from llama_index.core.vector_stores.types import MetadataFilters, ExactMatchFilter
 
 from typing import Dict, Any, List, Optional
 
 from src.config.config import Config
 from src.qdrant.qdrant_utils import QdrantWrapper
-from src.embedder.embedder_llama_index import EmbeddingWrapper
+from src.embedder.embedder import EmbeddingWrapper
 from src.parser.csv_parser import CsvParser
-from llama_index.core import Settings
-Settings.llm = None
 
 from src.utils.connections_manager import ConnectionManager
 from src.chatbot.rag_chat_bot import RAGChatBot
@@ -28,6 +25,10 @@ embedding_client = EmbeddingWrapper()
 
 try:
 
+    qdrant_client.delete_collection(collection_name=collection_name)
+    logger.info("collection deleted...")
+    qdrant_client._create_collection_if_not_exists()
+    logger.info("Collection created....")
     processed_chunks = file_processor.process_directory()
     qdrant_client.ingest_embeddings(processed_chunks)
 
@@ -63,10 +64,12 @@ async def handle_search(websocket: WebSocket, query: str) -> None:
     try:
         logger.info(f"Processing search query")
 
-        filename = find_file_names(query, database_files)
+        # filename = find_file_names(query, database_files)
 
         query_embeddings = embedding_client.generate_embeddings(query)
 
+
+        logger.info("Searching for top 5 results....")
         top_5_results = qdrant_client.search(query_embeddings, 5)
         logger.info("Retrieved top 5 results")
 
