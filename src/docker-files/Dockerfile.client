@@ -9,7 +9,7 @@ COPY client-requirements.txt .
 
 # Update pip and install dependencies
 RUN pip install --upgrade pip && \
-    pip install -r client-requirements.txt
+    pip install --default-timeout=5000  -r client-requirements.txt
 
 # Copy only the required files for the application
 COPY client.py .

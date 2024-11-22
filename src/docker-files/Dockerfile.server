@@ -7,8 +7,9 @@ COPY requirements.txt .
 
 # Update pip and install dependencies
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install --default-timeout=5000  -r requirements.txt
     
+
 COPY server.py .
 
 # Set Python to run in unbuffered mode

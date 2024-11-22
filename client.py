@@ -98,7 +98,7 @@ async def record_feedback(feedback, msg ) -> gr.Info:
 
 
 with gr.Blocks(
-    title="CAPEC RAG Chatbot",
+    title="EASM RAG Chatbot",
     theme=gr.themes.Soft(),
     css="""
         .gradio-container {
@@ -171,7 +171,7 @@ with gr.Blocks(
 
     # Header
     gr.Markdown(
-        "<div id='header'>CAPEC RAG Application</div>"
+        "<div id='header'>EASM RAG Application</div>"
     )
 
     # Chatbot Component

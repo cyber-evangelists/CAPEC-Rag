@@ -27,5 +27,6 @@ def find_file_names(query: str, database_files: List) -> str:
             return ""
     else:
         logger.info("No filename found.")
+        return ""
 
 
